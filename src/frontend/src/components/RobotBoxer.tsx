@@ -10,6 +10,7 @@ interface RobotBoxerProps {
   isPunching: "left" | "right" | null;
   isHit: boolean;
   isBoss?: boolean;
+  isBlack?: boolean;
 }
 
 const RobotBoxer: React.FC<RobotBoxerProps> = ({
@@ -20,36 +21,51 @@ const RobotBoxer: React.FC<RobotBoxerProps> = ({
   isPunching,
   isHit,
   isBoss = false,
+  isBlack = false,
 }) => {
   const isRed = player === "p1";
 
-  // Colors — boss overrides
+  // Colors — boss overrides, then black skin (P1 unlocked), then normal red/blue
   const bodyColor = isBoss
     ? "oklch(0.45 0.28 300)"
-    : isRed
-      ? "oklch(0.6 0.26 25)"
-      : "oklch(0.5 0.25 255)";
+    : isBlack && isRed
+      ? "oklch(0.18 0.01 280)"
+      : isRed
+        ? "oklch(0.6 0.26 25)"
+        : "oklch(0.5 0.25 255)";
   const bodyColorDark = isBoss
     ? "oklch(0.3 0.22 300)"
-    : isRed
-      ? "oklch(0.4 0.22 25)"
-      : "oklch(0.35 0.22 255)";
+    : isBlack && isRed
+      ? "oklch(0.10 0.01 280)"
+      : isRed
+        ? "oklch(0.4 0.22 25)"
+        : "oklch(0.35 0.22 255)";
   const bodyColorLight = isBoss
     ? "oklch(0.6 0.3 300)"
-    : isRed
-      ? "oklch(0.75 0.28 25)"
-      : "oklch(0.65 0.25 250)";
+    : isBlack && isRed
+      ? "oklch(0.35 0.02 280)"
+      : isRed
+        ? "oklch(0.75 0.28 25)"
+        : "oklch(0.65 0.25 250)";
   const glowColor = isBoss
     ? "oklch(0.6 0.3 300 / 0.9)"
-    : isRed
-      ? "oklch(0.72 0.28 25 / 0.8)"
-      : "oklch(0.7 0.25 250 / 0.8)";
-  const eyeColor = isBoss ? "oklch(0.85 0.25 30)" : "oklch(0.88 0.2 95)";
+    : isBlack && isRed
+      ? "oklch(0.6 0.0 0 / 0.5)"
+      : isRed
+        ? "oklch(0.72 0.28 25 / 0.8)"
+        : "oklch(0.7 0.25 250 / 0.8)";
+  const eyeColor = isBoss
+    ? "oklch(0.85 0.25 30)"
+    : isBlack && isRed
+      ? "oklch(0.9 0.01 280)"
+      : "oklch(0.88 0.2 95)";
   const antColor = isBoss
     ? "oklch(0.85 0.25 30)"
-    : isRed
-      ? "oklch(0.85 0.2 95)"
-      : "oklch(0.82 0.18 195)";
+    : isBlack && isRed
+      ? "oklch(0.8 0.01 280)"
+      : isRed
+        ? "oklch(0.85 0.2 95)"
+        : "oklch(0.82 0.18 195)";
 
   // P2 is mirrored facing left
   const flip = !isRed ? "scaleX(-1)" : "scaleX(1)";
@@ -105,16 +121,20 @@ const RobotBoxer: React.FC<RobotBoxerProps> = ({
                   background: isActive
                     ? isBoss
                       ? "oklch(0.65 0.28 300)"
-                      : isRed
-                        ? "oklch(0.72 0.28 25)"
-                        : "oklch(0.65 0.25 250)"
+                      : isBlack && isRed
+                        ? "oklch(0.7 0.01 280)"
+                        : isRed
+                          ? "oklch(0.72 0.28 25)"
+                          : "oklch(0.65 0.25 250)"
                     : "oklch(0.2 0.02 280)",
                   boxShadow: isActive
                     ? isBoss
                       ? "0 0 6px oklch(0.65 0.28 300)"
-                      : isRed
-                        ? "0 0 6px oklch(0.72 0.28 25)"
-                        : "0 0 6px oklch(0.65 0.25 250)"
+                      : isBlack && isRed
+                        ? "0 0 6px oklch(0.7 0.01 280)"
+                        : isRed
+                          ? "0 0 6px oklch(0.72 0.28 25)"
+                          : "0 0 6px oklch(0.65 0.25 250)"
                     : "none",
                   // Boss has smaller pips to fit 10
                   width: isBoss ? "10px" : "12px",
@@ -334,15 +354,19 @@ const RobotBoxer: React.FC<RobotBoxerProps> = ({
                   height: "10px",
                   background: isBoss
                     ? "oklch(0.85 0.25 30)"
-                    : isRed
-                      ? "oklch(0.88 0.2 95)"
-                      : "oklch(0.82 0.18 195)",
+                    : isBlack && isRed
+                      ? "oklch(0.75 0.01 280)"
+                      : isRed
+                        ? "oklch(0.88 0.2 95)"
+                        : "oklch(0.82 0.18 195)",
                   borderRadius: "2px",
                   boxShadow: isBoss
                     ? "0 0 6px oklch(0.85 0.25 30)"
-                    : isRed
-                      ? "0 0 6px oklch(0.88 0.2 95)"
-                      : "0 0 6px oklch(0.82 0.18 195)",
+                    : isBlack && isRed
+                      ? "0 0 6px oklch(0.75 0.01 280)"
+                      : isRed
+                        ? "0 0 6px oklch(0.88 0.2 95)"
+                        : "0 0 6px oklch(0.82 0.18 195)",
                 }}
               />
             </div>

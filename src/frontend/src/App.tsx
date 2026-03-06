@@ -10,6 +10,7 @@ const BOSS_MAX_HITS = 10;
 const PUNCH_ANIM_DURATION = 180;
 const HIT_FLASH_DURATION = 300;
 const EXTREME_WINS_REQUIRED = 10;
+const MAX_BONUS_HEALTH = 20; // cap so health bar doesn't get ridiculous
 
 type Difficulty = "easy" | "medium" | "hard" | "extreme";
 type GameMode = "2player" | "vsAI" | "boss";
@@ -61,6 +62,22 @@ function getStoredExtremeWins(): number {
   }
 }
 
+function getStoredBonusHealth(): number {
+  try {
+    return Number.parseInt(localStorage.getItem("bonusHealth") ?? "0", 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function getStoredBossDefeated(): boolean {
+  try {
+    return localStorage.getItem("bossDefeated") === "true";
+  } catch {
+    return false;
+  }
+}
+
 // ── MAIN APP ───────────────────────────────────────────────────
 export default function App() {
   const [gameMode, setGameMode] = useState<GameMode>("vsAI");
@@ -72,12 +89,19 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
   const [extremeWins, setExtremeWins] = useState<number>(getStoredExtremeWins);
   const [showBossUnlock, setShowBossUnlock] = useState(false);
+  const [bossDefeated, setBossDefeated] = useState<boolean>(
+    getStoredBossDefeated,
+  );
+  const [showBlackUnlock, setShowBlackUnlock] = useState(false);
+  const [bonusHealth, setBonusHealth] = useState<number>(getStoredBonusHealth);
+  const [justGainedHealth, setJustGainedHealth] = useState(false);
 
   const isBossUnlocked = extremeWins >= EXTREME_WINS_REQUIRED;
 
   const gamePhaseRef = useRef<GamePhase>("menu");
   const gameModeRef = useRef<GameMode>("vsAI");
   const difficultyRef = useRef<Difficulty>("medium");
+  const bonusHealthRef = useRef<number>(getStoredBonusHealth());
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const punchTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
@@ -97,6 +121,10 @@ export default function App() {
   useEffect(() => {
     difficultyRef.current = difficulty;
   }, [difficulty]);
+
+  useEffect(() => {
+    bonusHealthRef.current = bonusHealth;
+  }, [bonusHealth]);
 
   // ── Punch Logic ──────────────────────────────────────────────
   const triggerPunch = useCallback(
@@ -134,9 +162,9 @@ export default function App() {
         const newHits = prev[defender].hits + damage;
 
         // Determine KO thresholds
-        const p1MaxHits = MAX_HITS;
+        const p1MaxHitsNow = MAX_HITS + bonusHealthRef.current;
         const p2MaxHits = currentMode === "boss" ? BOSS_MAX_HITS : MAX_HITS;
-        const defenderMaxHits = defender === "p1" ? p1MaxHits : p2MaxHits;
+        const defenderMaxHits = defender === "p1" ? p1MaxHitsNow : p2MaxHits;
 
         const isKO = newHits >= defenderMaxHits;
 
@@ -164,12 +192,35 @@ export default function App() {
               }));
               recordWinMutation.mutate(attacker);
 
+              // Boss defeat reward: unlock black robot color
+              if (isP1Win && currentModeNow === "boss") {
+                setBossDefeated(true);
+                setShowBlackUnlock(true);
+                try {
+                  localStorage.setItem("bossDefeated", "true");
+                } catch {
+                  // ignore
+                }
+              }
+
               // Track extreme wins for VS AI extreme difficulty
               if (
                 isP1Win &&
                 currentModeNow === "vsAI" &&
                 difficultyRef.current === "extreme"
               ) {
+                // +1 bonus health per extreme win
+                setBonusHealth((prev) => {
+                  const next = Math.min(prev + 1, MAX_BONUS_HEALTH);
+                  try {
+                    localStorage.setItem("bonusHealth", next.toString());
+                  } catch {
+                    // ignore
+                  }
+                  return next;
+                });
+                setJustGainedHealth(true);
+
                 setExtremeWins((prev) => {
                   const next = prev + 1;
                   try {
@@ -285,6 +336,8 @@ export default function App() {
     setGame(initialGameState());
     setWinner(null);
     setShowBossUnlock(false);
+    setShowBlackUnlock(false);
+    setJustGainedHealth(false);
     setGamePhase("playing");
 
     if (gameMode === "vsAI" || gameMode === "boss") {
@@ -299,6 +352,8 @@ export default function App() {
     setGame(initialGameState());
     setWinner(null);
     setShowBossUnlock(false);
+    setShowBlackUnlock(false);
+    setJustGainedHealth(false);
     setGamePhase("menu");
   }, []);
 
@@ -318,8 +373,9 @@ export default function App() {
   }, [gamePhase]);
 
   // Derived values
+  const p1MaxHits = MAX_HITS + bonusHealth;
   const p2MaxHits = gameMode === "boss" ? BOSS_MAX_HITS : MAX_HITS;
-  const isKO_p1 = game.p1.hits >= MAX_HITS;
+  const isKO_p1 = game.p1.hits >= p1MaxHits;
   const isKO_p2 = game.p2.hits >= p2MaxHits;
 
   // ── RENDER ───────────────────────────────────────────────────
@@ -469,6 +525,21 @@ export default function App() {
           >
             {localWins.p1}
           </span>
+          {/* Bonus health indicator */}
+          {bonusHealth > 0 && (
+            <span
+              className="font-display font-black"
+              style={{
+                fontSize: "0.6rem",
+                letterSpacing: "0.08em",
+                color: "oklch(0.72 0.22 145)",
+                textShadow: "0 0 6px oklch(0.72 0.22 145 / 0.6)",
+                marginTop: "2px",
+              }}
+            >
+              ❤ HP {MAX_HITS + bonusHealth}
+            </span>
+          )}
         </div>
 
         {/* VS */}
@@ -773,10 +844,11 @@ export default function App() {
                   <RobotBoxer
                     player="p1"
                     hits={game.p1.hits}
-                    maxHits={MAX_HITS}
+                    maxHits={p1MaxHits}
                     isKO={isKO_p1}
                     isPunching={game.p1.isPunching}
                     isHit={game.p1.isHit}
+                    isBlack={bossDefeated}
                   />
                 </motion.div>
 
@@ -1010,6 +1082,41 @@ export default function App() {
               )}
             </AnimatePresence>
 
+            {/* Black Robot Unlock announcement */}
+            <AnimatePresence>
+              {showBlackUnlock && (
+                <motion.div
+                  data-ocid="game.black_unlock.panel"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 1.1, opacity: 0 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 200,
+                    damping: 15,
+                    delay: 0.15,
+                  }}
+                  className="absolute font-display font-black tracking-widest text-center uppercase"
+                  style={{
+                    fontSize: "clamp(1rem, 4vw, 1.6rem)",
+                    letterSpacing: "0.15em",
+                    color: "oklch(0.82 0.01 280)",
+                    textShadow:
+                      "0 0 16px oklch(0.9 0.01 280 / 0.9), 0 0 40px oklch(0.7 0.01 280 / 0.5), 0 0 80px oklch(0.5 0.01 280 / 0.3)",
+                    top: "22%",
+                    padding: "10px 22px",
+                    background: "oklch(0.1 0.01 280 / 0.92)",
+                    border: "2px solid oklch(0.55 0.01 280)",
+                    borderRadius: "8px",
+                    boxShadow:
+                      "0 0 30px oklch(0.4 0.01 280 / 0.5), inset 0 1px 0 oklch(0.5 0.01 280 / 0.3)",
+                  }}
+                >
+                  ⬛ BLACK ROBOT UNLOCKED! ⬛
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Big KO text */}
             <motion.div
               className="ko-burst"
@@ -1090,39 +1197,100 @@ export default function App() {
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="font-display text-center"
-                  style={{
-                    fontSize: "0.85rem",
-                    letterSpacing: "0.1em",
-                    padding: "6px 16px",
-                    borderRadius: "6px",
-                    background: "oklch(0.15 0.06 15 / 0.8)",
-                    border: "1.5px solid oklch(0.45 0.18 35)",
-                  }}
+                  className="font-display text-center flex flex-col items-center gap-2"
                 >
-                  {isBossUnlocked ? (
-                    <span
+                  {/* +1 HP gained notification */}
+                  {justGainedHealth && winner === "p1" && (
+                    <motion.div
+                      data-ocid="game.health_gained.panel"
+                      initial={{ scale: 0.7, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 260,
+                        damping: 14,
+                        delay: 0.1,
+                      }}
+                      className="font-display font-black tracking-widest uppercase"
                       style={{
-                        color: "oklch(0.88 0.2 65)",
-                        textShadow: "0 0 10px oklch(0.88 0.2 65 / 0.6)",
-                        fontWeight: 900,
+                        fontSize: "clamp(1rem, 4vw, 1.5rem)",
+                        letterSpacing: "0.15em",
+                        color: "oklch(0.75 0.28 145)",
+                        textShadow:
+                          "0 0 16px oklch(0.75 0.28 145 / 0.8), 0 0 40px oklch(0.75 0.28 145 / 0.4)",
+                        padding: "6px 18px",
+                        borderRadius: "6px",
+                        background: "oklch(0.14 0.06 145 / 0.85)",
+                        border: "2px solid oklch(0.55 0.22 145)",
+                        boxShadow: "0 0 20px oklch(0.55 0.22 145 / 0.3)",
                       }}
                     >
-                      💀 BOSS FIGHT UNLOCKED!
-                    </span>
-                  ) : (
-                    <span style={{ color: "oklch(0.72 0.2 65)" }}>
-                      Extreme Wins:{" "}
+                      ❤ +1 HEALTH POINT!
+                    </motion.div>
+                  )}
+
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      letterSpacing: "0.1em",
+                      padding: "5px 14px",
+                      borderRadius: "6px",
+                      background: "oklch(0.15 0.06 15 / 0.8)",
+                      border: "1.5px solid oklch(0.45 0.18 35)",
+                    }}
+                  >
+                    {isBossUnlocked ? (
                       <span
                         style={{
                           color: "oklch(0.88 0.2 65)",
+                          textShadow: "0 0 10px oklch(0.88 0.2 65 / 0.6)",
                           fontWeight: 900,
                         }}
                       >
-                        {extremeWins}
+                        💀 BOSS FIGHT UNLOCKED!
+                      </span>
+                    ) : (
+                      <span style={{ color: "oklch(0.72 0.2 65)" }}>
+                        Extreme Wins:{" "}
+                        <span
+                          style={{
+                            color: "oklch(0.88 0.2 65)",
+                            fontWeight: 900,
+                          }}
+                        >
+                          {extremeWins}
+                        </span>{" "}
+                        / {EXTREME_WINS_REQUIRED}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Current bonus health display */}
+                  {bonusHealth > 0 && (
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        letterSpacing: "0.08em",
+                        padding: "4px 12px",
+                        borderRadius: "6px",
+                        background: "oklch(0.14 0.06 145 / 0.7)",
+                        border: "1.5px solid oklch(0.4 0.18 145)",
+                        color: "oklch(0.72 0.22 145)",
+                      }}
+                    >
+                      Your Max Health:{" "}
+                      <span
+                        style={{
+                          color: "oklch(0.82 0.25 145)",
+                          fontWeight: 900,
+                        }}
+                      >
+                        {MAX_HITS + bonusHealth}
                       </span>{" "}
-                      / {EXTREME_WINS_REQUIRED}
-                    </span>
+                      <span style={{ color: "oklch(0.55 0.15 145)" }}>
+                        (+{bonusHealth} bonus)
+                      </span>
+                    </div>
                   )}
                 </motion.div>
               )}

@@ -1,48 +1,27 @@
 # Rock Em Sock Em
 
 ## Current State
-- 2-player or VS CPU boxing game
-- Single difficulty level: AI punches every 800–1500ms, player needs 5 hits to KO
-- Win counter tracked locally
-- RobotBoxer component renders SVG-style robots with health pips
-- No difficulty selection, no boss fight, no progression system
+The game has four difficulty modes (easy, medium, hard, extreme) and a boss fight unlocked after 10 extreme wins. Beating extreme mode grants +1 bonus health point, saved to localStorage. The player's robot (P1) always renders in red; the boss robot renders in purple.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Difficulty selector: Easy, Medium, Hard, Extreme (VS CPU mode only)
-- Each difficulty changes AI punch speed and/or number of hits needed to KO:
-  - Easy: AI punches every 2000–3000ms, 5 hits to KO opponent
-  - Medium: AI punches every 1200–2000ms, 5 hits to KO
-  - Hard: AI punches every 600–1000ms, 5 hits to KO
-  - Extreme: AI punches every 300–600ms, 5 hits to KO
-- Extreme wins counter (persisted in localStorage): tracks how many times the player has beaten Extreme mode
-- Boss fight unlock: after 10 Extreme wins, a "BOSS FIGHT" mode is unlocked in the menu
-- Boss fight mechanics:
-  - Boss robot is larger (2x scale visual)
-  - Boss does double damage (each boss punch counts as 2 hits)
-  - Boss takes 2x as many hits to KO (10 hits instead of 5)
-  - Boss AI punch interval same as Extreme difficulty
+- A `bossDefeated` boolean flag stored in `localStorage` that is set to `true` when the player beats the boss (P1 wins in boss mode).
+- A "black" color scheme for the P1 robot that is used when `bossDefeated` is `true`. Black robot uses near-black body colors with a subtle white/silver glow instead of the default red.
+- A victory announcement on the KO overlay when beating the boss that includes "COLOR UNLOCKED: BLACK ROBOT" to make the reward clear to the player.
 
 ### Modify
-- Menu screen: add difficulty selector row (Easy / Medium / Hard / Extreme buttons), shown only in VS CPU mode
-- VS CPU mode now uses selected difficulty settings
-- KO screen: when player wins Extreme mode, show progress toward boss unlock (e.g. "X/10 Extreme wins")
-- RobotBoxer component: accept optional `isBoss` prop that scales the robot up and changes color to a menacing purple/dark scheme
-- Boss fight intro: special KO overlay text "BOSS UNLOCKED!" with a dramatic reveal when first reaching 10 wins
+- `App.tsx`: Read `bossDefeated` from `localStorage` on mount. When the game ends with `winner === "p1"` and `gameMode === "boss"`, set `bossDefeated = true` in both state and `localStorage`.
+- `RobotBoxer.tsx`: Accept a new optional `isBlack?: boolean` prop. When true, apply a black/dark steel color palette (body near-black oklch ~0.15, accents silver/white) instead of the default red.
+- Pass `isBlack={bossDefeated}` to the P1 `<RobotBoxer>` instance in `App.tsx`.
 
 ### Remove
-- Nothing removed
+- Nothing removed.
 
 ## Implementation Plan
-1. Add `Difficulty` type and difficulty config object mapping difficulty → AI interval range and hit counts
-2. Add `extremeWins` state initialized from localStorage, persisted on each Extreme win
-3. Add `isBossUnlocked` derived state (extremeWins >= 10)
-4. Add difficulty selector UI in menu (only visible in VS CPU mode)
-5. Wire AI loop to use difficulty-based interval
-6. Add boss fight as a special mode: `gameMode` gains "boss" option or handle as a flag
-7. Update `triggerPunch` to handle boss double-damage (boss hits player for 2)
-8. Update MAX_HITS to be dynamic (10 for boss, 5 normal)
-9. Update RobotBoxer to accept `isBoss` prop — renders at 2x size with different color palette
-10. Update KO overlay to show Extreme wins progress and boss unlock notification
-11. Add "BOSS FIGHT" button in menu once unlocked, styled distinctly (red/gold dramatic)
+1. In `App.tsx`, add `getStoredBossDefeated()` helper reading `localStorage.getItem("bossDefeated")`.
+2. Add `bossDefeated` state initialized from `getStoredBossDefeated`.
+3. In the KO trigger logic, after setting `gamePhase("ko")`, if `attacker === "p1"` and `currentModeNow === "boss"`, persist and set `bossDefeated = true`.
+4. Add a "BLACK ROBOT UNLOCKED!" announcement panel to the KO overlay, shown when `winner === "p1" && gameMode === "boss"`, similar to the boss-unlock panel.
+5. In `RobotBoxer.tsx`, add `isBlack?: boolean` prop; compute alternate near-black color variables when `isBlack` is true. Apply to all body, arm, leg, and glow colors.
+6. Pass `isBlack={bossDefeated}` to the P1 `<RobotBoxer>` in App.tsx.

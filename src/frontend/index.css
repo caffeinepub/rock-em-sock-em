@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque[opsz,wdth,wght].woff2") format("woff2");
+  font-display: swap;
+  font-weight: 100 900;
+}
+
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("/assets/fonts/CabinetGrotesk-Variable.woff2") format("woff2");
+  font-display: swap;
+  font-weight: 100 900;
+}
+
+@layer base {
+  :root {
+    --radius: 0.25rem;
+
+    /* ARCADE DARK THEME */
+    --background: 0.12 0.01 280;
+    --foreground: 0.96 0.02 90;
+
+    --card: 0.16 0.02 280;
+    --card-foreground: 0.96 0.02 90;
+    --popover: 0.16 0.02 280;
+    --popover-foreground: 0.96 0.02 90;
+
+    /* Primary - Electric Yellow */
+    --primary: 0.88 0.2 95;
+    --primary-foreground: 0.1 0.02 280;
+
+    /* Secondary - Deep Purple */
+    --secondary: 0.22 0.04 280;
+    --secondary-foreground: 0.96 0.02 90;
+
+    --muted: 0.2 0.03 280;
+    --muted-foreground: 0.6 0.03 280;
+
+    /* Accent - Neon Cyan */
+    --accent: 0.78 0.18 195;
+    --accent-foreground: 0.1 0.02 280;
+
+    --destructive: 0.63 0.26 25;
+    --destructive-foreground: 0.96 0 0;
+
+    --border: 0.28 0.04 280;
+    --input: 0.28 0.04 280;
+    --ring: 0.78 0.18 195;
+
+    /* Chart colors */
+    --chart-1: 0.7 0.28 25;
+    --chart-2: 0.65 0.25 250;
+    --chart-3: 0.88 0.2 95;
+    --chart-4: 0.75 0.18 195;
+    --chart-5: 0.72 0.26 320;
+
+    /* Game-specific colors */
+    --p1-red: 0.63 0.26 25;
+    --p1-red-bright: 0.7 0.28 25;
+    --p2-blue: 0.55 0.25 255;
+    --p2-blue-bright: 0.65 0.25 250;
+    --ring-floor: 0.55 0.08 95;
+    --neon-yellow: 0.88 0.2 95;
+    --neon-cyan: 0.78 0.18 195;
+
+    /* Sidebar */
+    --sidebar: 0.14 0.02 280;
+    --sidebar-foreground: 0.96 0.02 90;
+    --sidebar-primary: 0.88 0.2 95;
+    --sidebar-primary-foreground: 0.1 0.02 280;
+    --sidebar-accent: 0.22 0.04 280;
+    --sidebar-accent-foreground: 0.96 0.02 90;
+    --sidebar-border: 0.28 0.04 280;
+    --sidebar-ring: 0.78 0.18 195;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Cabinet Grotesk", system-ui, sans-serif;
+    font-feature-settings: "ss01" on, "ss02" on;
+    overflow: hidden;
+  }
+}
+
+/* ── ROBOT ANIMATIONS ── */
+@keyframes punch-left {
+  0%   { transform: translateX(0) scaleX(1); }
+  40%  { transform: translateX(-28px) scaleX(1.15); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+
+@keyframes punch-right {
+  0%   { transform: translateX(0) scaleX(1); }
+  40%  { transform: translateX(28px) scaleX(1.15); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+
+@keyframes ko-head-pop {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(-32px) rotate(-8deg); }
+  50%  { transform: translateY(-28px) rotate(6deg); }
+  70%  { transform: translateY(-34px) rotate(-4deg); }
+  100% { transform: translateY(-30px) rotate(2deg); }
+}
+
+@keyframes body-flash {
+  0%   { filter: brightness(1); }
+  25%  { filter: brightness(2.5) saturate(0.5); }
+  50%  { filter: brightness(1); }
+  75%  { filter: brightness(2) saturate(0.5); }
+  100% { filter: brightness(1); }
+}
+
+@keyframes ko-shake {
+  0%, 100% { transform: translateX(0); }
+  15%  { transform: translateX(-6px) rotate(-2deg); }
+  30%  { transform: translateX(6px) rotate(2deg); }
+  45%  { transform: translateX(-4px); }
+  60%  { transform: translateX(4px); }
+  75%  { transform: translateX(-2px); }
+}
+
+@keyframes scanline {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes flicker {
+  0%, 97%, 100% { opacity: 1; }
+  98%  { opacity: 0.85; }
+  99%  { opacity: 0.92; }
+}
+
+@keyframes neon-pulse {
+  0%, 100% { box-shadow: 0 0 8px currentColor, 0 0 24px currentColor; }
+  50%       { box-shadow: 0 0 4px currentColor, 0 0 12px currentColor; }
+}
+
+@keyframes ko-burst {
+  0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+  40%  { transform: scale(1.15) rotate(4deg); opacity: 1; }
+  60%  { transform: scale(0.95) rotate(-2deg); opacity: 1; }
+  80%  { transform: scale(1.05) rotate(1deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes stars-scroll {
+  from { background-position: 0 0; }
+  to   { background-position: -200px 200px; }
+}
+
+.robot-punch-left  { animation: punch-left  150ms ease-out forwards; }
+.robot-punch-right { animation: punch-right 150ms ease-out forwards; }
+.body-hit          { animation: body-flash  300ms ease-out; }
+.robot-ko          { animation: ko-shake    400ms ease-out; }
+.head-ko           { animation: ko-head-pop 500ms cubic-bezier(0.34,1.56,0.64,1) forwards; }
+.ko-burst          { animation: ko-burst    600ms cubic-bezier(0.22,1,0.36,1) forwards; }
+
+/* Scanline CRT effect */
+.crt-lines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    oklch(0 0 0 / 0.04) 2px,
+    oklch(0 0 0 / 0.04) 4px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Neon text glow */
+.neon-text-yellow {
+  color: oklch(0.88 0.2 95);
+  text-shadow:
+    0 0 8px oklch(0.88 0.2 95 / 0.9),
+    0 0 24px oklch(0.88 0.2 95 / 0.5),
+    0 0 48px oklch(0.88 0.2 95 / 0.3);
+}
+
+.neon-text-red {
+  color: oklch(0.72 0.28 25);
+  text-shadow:
+    0 0 8px oklch(0.72 0.28 25 / 0.9),
+    0 0 24px oklch(0.72 0.28 25 / 0.5),
+    0 0 48px oklch(0.72 0.28 25 / 0.3);
+}
+
+.neon-text-blue {
+  color: oklch(0.7 0.25 250);
+  text-shadow:
+    0 0 8px oklch(0.7 0.25 250 / 0.9),
+    0 0 24px oklch(0.7 0.25 250 / 0.5),
+    0 0 48px oklch(0.7 0.25 250 / 0.3);
+}
+
+.neon-text-cyan {
+  color: oklch(0.82 0.18 195);
+  text-shadow:
+    0 0 8px oklch(0.82 0.18 195 / 0.9),
+    0 0 24px oklch(0.82 0.18 195 / 0.5);
+}
+
+/* Punch button styles */
+.punch-btn {
+  transition: transform 80ms, box-shadow 80ms;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.punch-btn:active,
+.punch-btn.pressing {
+  transform: scale(0.9) translateY(3px) !important;
+}
+
+/* Health pip */
+.health-pip {
+  transition: background-color 200ms, box-shadow 200ms;
+}
+
+/* Stars background */
+.stars-bg {
+  background-image:
+    radial-gradient(circle, oklch(0.9 0 0 / 0.6) 1px, transparent 1px),
+    radial-gradient(circle, oklch(0.9 0 0 / 0.3) 1px, transparent 1px);
+  background-size: 60px 60px, 100px 100px;
+  background-position: 0 0, 30px 30px;
+  animation: stars-scroll 20s linear infinite;
+}
+
+/* Floor gradient */
+.ring-floor {
+  background: linear-gradient(
+    to bottom,
+    oklch(0.35 0.06 95) 0%,
+    oklch(0.28 0.04 95) 40%,
+    oklch(0.2 0.03 280) 100%
+  );
+  border-top: 4px solid oklch(0.6 0.18 95);
+  box-shadow:
+    0 -8px 32px oklch(0.88 0.2 95 / 0.3),
+    inset 0 8px 24px oklch(0 0 0 / 0.4);
+}
+
+/* Rope effect */
+.ring-rope {
+  background: linear-gradient(
+    to bottom,
+    oklch(0.85 0.18 95) 0%,
+    oklch(0.7 0.14 95) 50%,
+    oklch(0.55 0.1 95) 100%
+  );
+  box-shadow: 0 2px 8px oklch(0 0 0 / 0.5);
+}

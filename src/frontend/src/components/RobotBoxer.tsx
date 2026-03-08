@@ -10,7 +10,9 @@ interface RobotBoxerProps {
   isPunching: "left" | "right" | null;
   isHit: boolean;
   isBoss?: boolean;
+  isBoss2?: boolean;
   isBlack?: boolean;
+  isGold?: boolean;
 }
 
 const RobotBoxer: React.FC<RobotBoxerProps> = ({
@@ -21,51 +23,82 @@ const RobotBoxer: React.FC<RobotBoxerProps> = ({
   isPunching,
   isHit,
   isBoss = false,
+  isBoss2 = false,
   isBlack = false,
+  isGold = false,
 }) => {
   const isRed = player === "p1";
 
-  // Colors — boss overrides, then black skin (P1 unlocked), then normal red/blue
-  const bodyColor = isBoss
-    ? "oklch(0.45 0.28 300)"
-    : isBlack && isRed
-      ? "oklch(0.18 0.01 280)"
-      : isRed
-        ? "oklch(0.6 0.26 25)"
-        : "oklch(0.5 0.25 255)";
-  const bodyColorDark = isBoss
-    ? "oklch(0.3 0.22 300)"
-    : isBlack && isRed
-      ? "oklch(0.10 0.01 280)"
-      : isRed
-        ? "oklch(0.4 0.22 25)"
-        : "oklch(0.35 0.22 255)";
-  const bodyColorLight = isBoss
-    ? "oklch(0.6 0.3 300)"
-    : isBlack && isRed
-      ? "oklch(0.35 0.02 280)"
-      : isRed
-        ? "oklch(0.75 0.28 25)"
-        : "oklch(0.65 0.25 250)";
-  const glowColor = isBoss
-    ? "oklch(0.6 0.3 300 / 0.9)"
-    : isBlack && isRed
-      ? "oklch(0.6 0.0 0 / 0.5)"
-      : isRed
-        ? "oklch(0.72 0.28 25 / 0.8)"
-        : "oklch(0.7 0.25 250 / 0.8)";
-  const eyeColor = isBoss
-    ? "oklch(0.85 0.25 30)"
-    : isBlack && isRed
-      ? "oklch(0.9 0.01 280)"
-      : "oklch(0.88 0.2 95)";
-  const antColor = isBoss
-    ? "oklch(0.85 0.25 30)"
-    : isBlack && isRed
-      ? "oklch(0.8 0.01 280)"
-      : isRed
-        ? "oklch(0.85 0.2 95)"
-        : "oklch(0.82 0.18 195)";
+  // Colors — priority: isBoss2 → isBoss → isGold && isRed → isBlack && isRed → normal red/blue
+  const bodyColor = isBoss2
+    ? "oklch(0.62 0.25 55)"
+    : isBoss
+      ? "oklch(0.45 0.28 300)"
+      : isGold && isRed
+        ? "oklch(0.72 0.24 75)"
+        : isBlack && isRed
+          ? "oklch(0.18 0.01 280)"
+          : isRed
+            ? "oklch(0.6 0.26 25)"
+            : "oklch(0.5 0.25 255)";
+
+  const bodyColorDark = isBoss2
+    ? "oklch(0.42 0.22 55)"
+    : isBoss
+      ? "oklch(0.3 0.22 300)"
+      : isGold && isRed
+        ? "oklch(0.50 0.20 70)"
+        : isBlack && isRed
+          ? "oklch(0.10 0.01 280)"
+          : isRed
+            ? "oklch(0.4 0.22 25)"
+            : "oklch(0.35 0.22 255)";
+
+  const bodyColorLight = isBoss2
+    ? "oklch(0.80 0.26 65)"
+    : isBoss
+      ? "oklch(0.6 0.3 300)"
+      : isGold && isRed
+        ? "oklch(0.88 0.22 80)"
+        : isBlack && isRed
+          ? "oklch(0.35 0.02 280)"
+          : isRed
+            ? "oklch(0.75 0.28 25)"
+            : "oklch(0.65 0.25 250)";
+
+  const glowColor = isBoss2
+    ? "oklch(0.75 0.28 65 / 0.9)"
+    : isBoss
+      ? "oklch(0.6 0.3 300 / 0.9)"
+      : isGold && isRed
+        ? "oklch(0.80 0.26 75 / 0.8)"
+        : isBlack && isRed
+          ? "oklch(0.6 0.0 0 / 0.5)"
+          : isRed
+            ? "oklch(0.72 0.28 25 / 0.8)"
+            : "oklch(0.7 0.25 250 / 0.8)";
+
+  const eyeColor = isBoss2
+    ? "oklch(0.98 0.18 95)"
+    : isBoss
+      ? "oklch(0.85 0.25 30)"
+      : isGold && isRed
+        ? "oklch(0.98 0.18 95)"
+        : isBlack && isRed
+          ? "oklch(0.9 0.01 280)"
+          : "oklch(0.88 0.2 95)";
+
+  const antColor = isBoss2
+    ? "oklch(0.95 0.2 75)"
+    : isBoss
+      ? "oklch(0.85 0.25 30)"
+      : isGold && isRed
+        ? "oklch(0.95 0.2 75)"
+        : isBlack && isRed
+          ? "oklch(0.8 0.01 280)"
+          : isRed
+            ? "oklch(0.85 0.2 95)"
+            : "oklch(0.82 0.18 195)";
 
   // P2 is mirrored facing left
   const flip = !isRed ? "scaleX(-1)" : "scaleX(1)";
@@ -88,14 +121,51 @@ const RobotBoxer: React.FC<RobotBoxerProps> = ({
   const koBodyClass = isKO ? "robot-ko" : "";
   const headClass = isKO ? "head-ko" : "";
 
-  // Boss scale wrapper
-  const bossScale = isBoss ? "scale(1.6)" : undefined;
-  const bossMargin = isBoss ? "0 20px 32px 20px" : undefined;
+  // Scale wrapper — Boss2 is biggest, Boss1 is large
+  const scaleTransform = isBoss2
+    ? "scale(2.2)"
+    : isBoss
+      ? "scale(1.6)"
+      : undefined;
+  const bossMargin = isBoss2
+    ? "0 36px 52px 36px"
+    : isBoss
+      ? "0 20px 32px 20px"
+      : undefined;
+
+  // Health pip dimensions — boss2 needs very small pips to fit 20
+  const pipSize = isBoss2 ? "7px" : isBoss ? "10px" : "12px";
+
+  // Health pip active color
+  const pipColor = isBoss2
+    ? "oklch(0.80 0.26 65)"
+    : isBoss
+      ? "oklch(0.65 0.28 300)"
+      : isGold && isRed
+        ? "oklch(0.80 0.24 75)"
+        : isBlack && isRed
+          ? "oklch(0.7 0.01 280)"
+          : isRed
+            ? "oklch(0.72 0.28 25)"
+            : "oklch(0.65 0.25 250)";
+
+  // Belt buckle color
+  const beltColor = isBoss2
+    ? "oklch(0.95 0.2 75)"
+    : isBoss
+      ? "oklch(0.85 0.25 30)"
+      : isGold && isRed
+        ? "oklch(0.95 0.2 75)"
+        : isBlack && isRed
+          ? "oklch(0.75 0.01 280)"
+          : isRed
+            ? "oklch(0.88 0.2 95)"
+            : "oklch(0.82 0.18 195)";
 
   return (
     <div
       style={{
-        transform: bossScale,
+        transform: scaleTransform,
         transformOrigin: "bottom center",
         margin: bossMargin,
         display: "inline-block",
@@ -107,8 +177,11 @@ const RobotBoxer: React.FC<RobotBoxerProps> = ({
       >
         {/* Health pips */}
         <div
-          className="flex gap-1 mb-2"
-          style={{ transform: isRed ? "scaleX(1)" : "scaleX(-1)" }}
+          className="flex gap-1 mb-2 flex-wrap justify-center"
+          style={{
+            transform: isRed ? "scaleX(1)" : "scaleX(-1)",
+            maxWidth: isBoss2 ? "120px" : undefined,
+          }}
         >
           {Array.from({ length: maxHits }).map((_, i) => {
             const isActive = i < maxHits - hits;
@@ -116,29 +189,12 @@ const RobotBoxer: React.FC<RobotBoxerProps> = ({
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: static fixed-length array, index is stable
                 key={i}
-                className="health-pip w-3 h-3 rounded-sm border border-white/20"
+                className="health-pip rounded-sm border border-white/20"
                 style={{
-                  background: isActive
-                    ? isBoss
-                      ? "oklch(0.65 0.28 300)"
-                      : isBlack && isRed
-                        ? "oklch(0.7 0.01 280)"
-                        : isRed
-                          ? "oklch(0.72 0.28 25)"
-                          : "oklch(0.65 0.25 250)"
-                    : "oklch(0.2 0.02 280)",
-                  boxShadow: isActive
-                    ? isBoss
-                      ? "0 0 6px oklch(0.65 0.28 300)"
-                      : isBlack && isRed
-                        ? "0 0 6px oklch(0.7 0.01 280)"
-                        : isRed
-                          ? "0 0 6px oklch(0.72 0.28 25)"
-                          : "0 0 6px oklch(0.65 0.25 250)"
-                    : "none",
-                  // Boss has smaller pips to fit 10
-                  width: isBoss ? "10px" : "12px",
-                  height: isBoss ? "10px" : "12px",
+                  width: pipSize,
+                  height: pipSize,
+                  background: isActive ? pipColor : "oklch(0.2 0.02 280)",
+                  boxShadow: isActive ? `0 0 6px ${pipColor}` : "none",
                 }}
               />
             );
@@ -352,21 +408,9 @@ const RobotBoxer: React.FC<RobotBoxerProps> = ({
                 style={{
                   width: "20px",
                   height: "10px",
-                  background: isBoss
-                    ? "oklch(0.85 0.25 30)"
-                    : isBlack && isRed
-                      ? "oklch(0.75 0.01 280)"
-                      : isRed
-                        ? "oklch(0.88 0.2 95)"
-                        : "oklch(0.82 0.18 195)",
+                  background: beltColor,
                   borderRadius: "2px",
-                  boxShadow: isBoss
-                    ? "0 0 6px oklch(0.85 0.25 30)"
-                    : isBlack && isRed
-                      ? "0 0 6px oklch(0.75 0.01 280)"
-                      : isRed
-                        ? "0 0 6px oklch(0.88 0.2 95)"
-                        : "0 0 6px oklch(0.82 0.18 195)",
+                  boxShadow: `0 0 6px ${beltColor}`,
                 }}
               />
             </div>

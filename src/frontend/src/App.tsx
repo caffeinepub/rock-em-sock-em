@@ -7,13 +7,14 @@ import { useRecordWin } from "./hooks/useQueries";
 // ── CONSTANTS ──────────────────────────────────────────────────
 const MAX_HITS = 5;
 const BOSS_MAX_HITS = 10;
+const BOSS2_MAX_HITS = 20;
 const PUNCH_ANIM_DURATION = 180;
 const HIT_FLASH_DURATION = 300;
 const EXTREME_WINS_REQUIRED = 10;
 const MAX_BONUS_HEALTH = 20; // cap so health bar doesn't get ridiculous
 
 type Difficulty = "easy" | "medium" | "hard" | "extreme";
-type GameMode = "2player" | "vsAI" | "boss";
+type GameMode = "2player" | "vsAI" | "boss" | "boss2";
 type GamePhase = "menu" | "playing" | "ko";
 type PunchSide = "left" | "right";
 
@@ -21,10 +22,10 @@ const DIFFICULTY_CONFIG: Record<
   Difficulty,
   { minInterval: number; maxInterval: number }
 > = {
-  easy: { minInterval: 2000, maxInterval: 3000 },
-  medium: { minInterval: 1200, maxInterval: 2000 },
-  hard: { minInterval: 600, maxInterval: 1000 },
-  extreme: { minInterval: 300, maxInterval: 600 },
+  easy: { minInterval: 1200, maxInterval: 2000 },
+  medium: { minInterval: 700, maxInterval: 1200 },
+  hard: { minInterval: 350, maxInterval: 600 },
+  extreme: { minInterval: 150, maxInterval: 300 },
 };
 
 interface PlayerState {
@@ -78,6 +79,14 @@ function getStoredBossDefeated(): boolean {
   }
 }
 
+function getStoredBoss2Defeated(): boolean {
+  try {
+    return localStorage.getItem("boss2Defeated") === "true";
+  } catch {
+    return false;
+  }
+}
+
 // ── MAIN APP ───────────────────────────────────────────────────
 export default function App() {
   const [gameMode, setGameMode] = useState<GameMode>("vsAI");
@@ -92,7 +101,11 @@ export default function App() {
   const [bossDefeated, setBossDefeated] = useState<boolean>(
     getStoredBossDefeated,
   );
+  const [boss2Defeated, setBoss2Defeated] = useState<boolean>(
+    getStoredBoss2Defeated,
+  );
   const [showBlackUnlock, setShowBlackUnlock] = useState(false);
+  const [showGoldUnlock, setShowGoldUnlock] = useState(false);
   const [bonusHealth, setBonusHealth] = useState<number>(getStoredBonusHealth);
   const [justGainedHealth, setJustGainedHealth] = useState(false);
 
@@ -134,8 +147,13 @@ export default function App() {
       const defender = attacker === "p1" ? "p2" : "p1";
       const currentMode = gameModeRef.current;
 
-      // Boss deals 2 damage when it hits the player
-      const damage = currentMode === "boss" && attacker === "p2" ? 2 : 1;
+      // Boss 2 deals 4 damage, Boss 1 deals 2 damage, others deal 1
+      const damage =
+        currentMode === "boss2" && attacker === "p2"
+          ? 4
+          : currentMode === "boss" && attacker === "p2"
+            ? 2
+            : 1;
 
       // Animate attacker arm
       setGame((prev) => ({
@@ -163,8 +181,13 @@ export default function App() {
 
         // Determine KO thresholds
         const p1MaxHitsNow = MAX_HITS + bonusHealthRef.current;
-        const p2MaxHits = currentMode === "boss" ? BOSS_MAX_HITS : MAX_HITS;
-        const defenderMaxHits = defender === "p1" ? p1MaxHitsNow : p2MaxHits;
+        const p2MaxHitsNow =
+          currentMode === "boss2"
+            ? BOSS2_MAX_HITS
+            : currentMode === "boss"
+              ? BOSS_MAX_HITS
+              : MAX_HITS;
+        const defenderMaxHits = defender === "p1" ? p1MaxHitsNow : p2MaxHitsNow;
 
         const isKO = newHits >= defenderMaxHits;
 
@@ -176,14 +199,18 @@ export default function App() {
               const currentModeNow = gameModeRef.current;
               setKoText(
                 isP1Win
-                  ? currentModeNow === "boss"
-                    ? "YOU DEFEATED THE BOSS!"
-                    : "PLAYER 1 WINS!"
-                  : currentModeNow === "vsAI" || currentModeNow === "boss"
-                    ? currentModeNow === "boss"
-                      ? "BOSS WINS!"
-                      : "CPU WINS!"
-                    : "PLAYER 2 WINS!",
+                  ? currentModeNow === "boss2"
+                    ? "YOU DEFEATED BOSS 2!"
+                    : currentModeNow === "boss"
+                      ? "YOU DEFEATED THE BOSS!"
+                      : "PLAYER 1 WINS!"
+                  : currentModeNow === "boss2"
+                    ? "BOSS 2 WINS!"
+                    : currentModeNow === "vsAI" || currentModeNow === "boss"
+                      ? currentModeNow === "boss"
+                        ? "BOSS WINS!"
+                        : "CPU WINS!"
+                      : "PLAYER 2 WINS!",
               );
               setGamePhase("ko");
               setLocalWins((w) => ({
@@ -198,6 +225,17 @@ export default function App() {
                 setShowBlackUnlock(true);
                 try {
                   localStorage.setItem("bossDefeated", "true");
+                } catch {
+                  // ignore
+                }
+              }
+
+              // Boss 2 defeat reward: unlock gold robot color
+              if (isP1Win && currentModeNow === "boss2") {
+                setBoss2Defeated(true);
+                setShowGoldUnlock(true);
+                try {
+                  localStorage.setItem("boss2Defeated", "true");
                 } catch {
                   // ignore
                 }
@@ -269,12 +307,14 @@ export default function App() {
   const scheduleAI = useCallback(() => {
     if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
 
-    // Boss always uses extreme intervals
     const currentMode = gameModeRef.current;
+    // Boss 2 gets its own fast config, Boss 1 uses extreme, others use selected difficulty
     const config =
-      currentMode === "boss"
-        ? DIFFICULTY_CONFIG.extreme
-        : DIFFICULTY_CONFIG[difficultyRef.current];
+      currentMode === "boss2"
+        ? { minInterval: 150, maxInterval: 300 }
+        : currentMode === "boss"
+          ? DIFFICULTY_CONFIG.extreme
+          : DIFFICULTY_CONFIG[difficultyRef.current];
 
     const delay = randomBetween(config.minInterval, config.maxInterval);
     aiTimerRef.current = setTimeout(() => {
@@ -324,7 +364,7 @@ export default function App() {
     setWinner(null);
     setGamePhase("playing");
 
-    if (gameMode === "vsAI" || gameMode === "boss") {
+    if (gameMode === "vsAI" || gameMode === "boss" || gameMode === "boss2") {
       scheduleAI();
     }
   }, [gameMode, scheduleAI]);
@@ -337,10 +377,11 @@ export default function App() {
     setWinner(null);
     setShowBossUnlock(false);
     setShowBlackUnlock(false);
+    setShowGoldUnlock(false);
     setJustGainedHealth(false);
     setGamePhase("playing");
 
-    if (gameMode === "vsAI" || gameMode === "boss") {
+    if (gameMode === "vsAI" || gameMode === "boss" || gameMode === "boss2") {
       scheduleAI();
     }
   }, [gameMode, scheduleAI]);
@@ -353,6 +394,7 @@ export default function App() {
     setWinner(null);
     setShowBossUnlock(false);
     setShowBlackUnlock(false);
+    setShowGoldUnlock(false);
     setJustGainedHealth(false);
     setGamePhase("menu");
   }, []);
@@ -374,7 +416,12 @@ export default function App() {
 
   // Derived values
   const p1MaxHits = MAX_HITS + bonusHealth;
-  const p2MaxHits = gameMode === "boss" ? BOSS_MAX_HITS : MAX_HITS;
+  const p2MaxHits =
+    gameMode === "boss2"
+      ? BOSS2_MAX_HITS
+      : gameMode === "boss"
+        ? BOSS_MAX_HITS
+        : MAX_HITS;
   const isKO_p1 = game.p1.hits >= p1MaxHits;
   const isKO_p2 = game.p2.hits >= p2MaxHits;
 
@@ -556,32 +603,42 @@ export default function App() {
             className="font-display text-xs tracking-widest uppercase mb-1"
             style={{
               color:
-                gameMode === "boss"
-                  ? "oklch(0.65 0.28 300)"
-                  : "oklch(0.65 0.25 250)",
+                gameMode === "boss2"
+                  ? "oklch(0.75 0.22 60)"
+                  : gameMode === "boss"
+                    ? "oklch(0.65 0.28 300)"
+                    : "oklch(0.65 0.25 250)",
               textShadow:
-                gameMode === "boss"
-                  ? "0 0 8px oklch(0.65 0.28 300 / 0.7)"
-                  : "0 0 8px oklch(0.65 0.25 250 / 0.7)",
+                gameMode === "boss2"
+                  ? "0 0 8px oklch(0.75 0.22 60 / 0.7)"
+                  : gameMode === "boss"
+                    ? "0 0 8px oklch(0.65 0.28 300 / 0.7)"
+                    : "0 0 8px oklch(0.65 0.25 250 / 0.7)",
             }}
           >
             {gameMode === "2player"
               ? "PLAYER 2"
-              : gameMode === "boss"
-                ? "BOSS"
-                : "CPU"}
+              : gameMode === "boss2"
+                ? "BOSS 2"
+                : gameMode === "boss"
+                  ? "BOSS"
+                  : "CPU"}
           </span>
           <span
             className="font-display text-4xl font-black"
             style={{
               color:
-                gameMode === "boss"
-                  ? "oklch(0.65 0.28 300)"
-                  : "oklch(0.65 0.25 250)",
+                gameMode === "boss2"
+                  ? "oklch(0.75 0.22 60)"
+                  : gameMode === "boss"
+                    ? "oklch(0.65 0.28 300)"
+                    : "oklch(0.65 0.25 250)",
               textShadow:
-                gameMode === "boss"
-                  ? "0 0 12px oklch(0.65 0.28 300 / 0.8), 0 0 32px oklch(0.65 0.28 300 / 0.4)"
-                  : "0 0 12px oklch(0.65 0.25 250 / 0.8), 0 0 32px oklch(0.65 0.25 250 / 0.4)",
+                gameMode === "boss2"
+                  ? "0 0 12px oklch(0.75 0.22 60 / 0.8), 0 0 32px oklch(0.75 0.22 60 / 0.4)"
+                  : gameMode === "boss"
+                    ? "0 0 12px oklch(0.65 0.28 300 / 0.8), 0 0 32px oklch(0.65 0.28 300 / 0.4)"
+                    : "0 0 12px oklch(0.65 0.25 250 / 0.8), 0 0 32px oklch(0.65 0.25 250 / 0.4)",
               lineHeight: 1,
             }}
           >
@@ -685,6 +742,39 @@ export default function App() {
                   💀 BOSS FIGHT
                 </motion.button>
               )}
+
+              {/* BOSS 2 button — visible when boss 1 has been defeated */}
+              {bossDefeated && (
+                <motion.button
+                  type="button"
+                  data-ocid="game.mode_boss2.button"
+                  onClick={() => setGameMode("boss2")}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="font-display text-xs tracking-widest uppercase px-4 py-2 rounded transition-colors"
+                  style={{
+                    fontWeight: 900,
+                    letterSpacing: "0.15em",
+                    background:
+                      gameMode === "boss2"
+                        ? "oklch(0.38 0.22 55)"
+                        : "oklch(0.22 0.14 60)",
+                    color:
+                      gameMode === "boss2"
+                        ? "oklch(0.95 0.15 75)"
+                        : "oklch(0.75 0.18 65)",
+                    border: `2px solid ${gameMode === "boss2" ? "oklch(0.85 0.2 75)" : "oklch(0.55 0.2 55)"}`,
+                    boxShadow:
+                      gameMode === "boss2"
+                        ? "0 0 20px oklch(0.78 0.22 65 / 0.7), 0 0 40px oklch(0.55 0.2 55 / 0.5)"
+                        : "0 0 10px oklch(0.55 0.2 55 / 0.4)",
+                  }}
+                >
+                  💀 BOSS 2
+                </motion.button>
+              )}
             </div>
 
             {/* Difficulty selector — only for VS CPU */}
@@ -776,6 +866,23 @@ export default function App() {
                 ⚠ BOSS DEALS 2× DAMAGE · TAKES 10 HITS TO KO
               </motion.div>
             )}
+
+            {/* Boss 2 mode warning */}
+            {gameMode === "boss2" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="font-display text-center"
+                style={{
+                  fontSize: "0.6rem",
+                  letterSpacing: "0.15em",
+                  color: "oklch(0.85 0.22 65)",
+                  textShadow: "0 0 8px oklch(0.85 0.22 65 / 0.5)",
+                }}
+              >
+                ⚠ BOSS 2 DEALS 4× DAMAGE · TAKES 20 HITS TO KO
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -834,7 +941,12 @@ export default function App() {
               {/* Robots on floor */}
               <div
                 className="flex items-end justify-between w-full mx-auto"
-                style={{ maxWidth: gameMode === "boss" ? "100%" : "24rem" }}
+                style={{
+                  maxWidth:
+                    gameMode === "boss" || gameMode === "boss2"
+                      ? "100%"
+                      : "24rem",
+                }}
               >
                 {/* P1 Robot */}
                 <motion.div
@@ -849,13 +961,19 @@ export default function App() {
                     isPunching={game.p1.isPunching}
                     isHit={game.p1.isHit}
                     isBlack={bossDefeated}
+                    isGold={boss2Defeated}
                   />
                 </motion.div>
 
                 {/* Center spark zone */}
                 <div
                   className="flex flex-col items-center"
-                  style={{ width: gameMode === "boss" ? "80px" : "60px" }}
+                  style={{
+                    width:
+                      gameMode === "boss" || gameMode === "boss2"
+                        ? "80px"
+                        : "60px",
+                  }}
                 >
                   <AnimatePresence>
                     {(game.p1.isPunching || game.p2.isPunching) && (
@@ -870,18 +988,27 @@ export default function App() {
                         transition={{ duration: 0.3 }}
                         className="font-display font-black"
                         style={{
-                          fontSize: gameMode === "boss" ? "40px" : "28px",
+                          fontSize:
+                            gameMode === "boss" || gameMode === "boss2"
+                              ? "40px"
+                              : "28px",
                           color:
-                            gameMode === "boss"
-                              ? "oklch(0.85 0.25 30)"
-                              : "oklch(0.88 0.2 95)",
+                            gameMode === "boss2"
+                              ? "oklch(0.85 0.25 60)"
+                              : gameMode === "boss"
+                                ? "oklch(0.85 0.25 30)"
+                                : "oklch(0.88 0.2 95)",
                           textShadow:
-                            gameMode === "boss"
-                              ? "0 0 16px oklch(0.85 0.25 30)"
-                              : "0 0 16px oklch(0.88 0.2 95)",
+                            gameMode === "boss2"
+                              ? "0 0 16px oklch(0.85 0.25 60)"
+                              : gameMode === "boss"
+                                ? "0 0 16px oklch(0.85 0.25 30)"
+                                : "0 0 16px oklch(0.88 0.2 95)",
                         }}
                       >
-                        {gameMode === "boss" ? "💥" : "⚡"}
+                        {gameMode === "boss" || gameMode === "boss2"
+                          ? "💥"
+                          : "⚡"}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -900,6 +1027,7 @@ export default function App() {
                     isPunching={game.p2.isPunching}
                     isHit={game.p2.isHit}
                     isBoss={gameMode === "boss"}
+                    isBoss2={gameMode === "boss2"}
                   />
                 </motion.div>
               </div>
@@ -955,24 +1083,34 @@ export default function App() {
                   fontSize: "clamp(1rem, 3vw, 1.4rem)",
                   letterSpacing: "0.2em",
                   background:
-                    gameMode === "boss"
-                      ? "oklch(0.35 0.22 15)"
-                      : "oklch(0.88 0.2 95)",
+                    gameMode === "boss2"
+                      ? "oklch(0.38 0.22 55)"
+                      : gameMode === "boss"
+                        ? "oklch(0.35 0.22 15)"
+                        : "oklch(0.88 0.2 95)",
                   color:
-                    gameMode === "boss"
+                    gameMode === "boss2" || gameMode === "boss"
                       ? "oklch(0.88 0.2 95)"
                       : "oklch(0.1 0.02 280)",
                   border:
-                    gameMode === "boss"
-                      ? "3px solid oklch(0.78 0.18 65)"
-                      : "3px solid oklch(0.95 0.15 95)",
+                    gameMode === "boss2"
+                      ? "3px solid oklch(0.85 0.2 75)"
+                      : gameMode === "boss"
+                        ? "3px solid oklch(0.78 0.18 65)"
+                        : "3px solid oklch(0.95 0.15 95)",
                   boxShadow:
-                    gameMode === "boss"
-                      ? "0 0 24px oklch(0.62 0.28 15 / 0.6), 0 0 48px oklch(0.45 0.2 15 / 0.3), 0 6px 0 oklch(0.25 0.15 15)"
-                      : "0 0 24px oklch(0.88 0.2 95 / 0.6), 0 0 48px oklch(0.88 0.2 95 / 0.3), 0 6px 0 oklch(0.6 0.16 95)",
+                    gameMode === "boss2"
+                      ? "0 0 24px oklch(0.65 0.25 60 / 0.6), 0 0 48px oklch(0.45 0.2 55 / 0.3), 0 6px 0 oklch(0.25 0.15 55)"
+                      : gameMode === "boss"
+                        ? "0 0 24px oklch(0.62 0.28 15 / 0.6), 0 0 48px oklch(0.45 0.2 15 / 0.3), 0 6px 0 oklch(0.25 0.15 15)"
+                        : "0 0 24px oklch(0.88 0.2 95 / 0.6), 0 0 48px oklch(0.88 0.2 95 / 0.3), 0 6px 0 oklch(0.6 0.16 95)",
                 }}
               >
-                {gameMode === "boss" ? "💀 FIGHT BOSS!" : "▶ FIGHT!"}
+                {gameMode === "boss2"
+                  ? "💀 FIGHT BOSS 2!"
+                  : gameMode === "boss"
+                    ? "💀 FIGHT BOSS!"
+                    : "▶ FIGHT!"}
               </motion.button>
             )}
             {gamePhase === "playing" && (
@@ -994,21 +1132,27 @@ export default function App() {
               className="font-display text-xs tracking-widest uppercase font-black"
               style={{
                 color:
-                  gameMode === "boss"
-                    ? "oklch(0.65 0.28 300)"
-                    : "oklch(0.65 0.25 250)",
+                  gameMode === "boss2"
+                    ? "oklch(0.75 0.22 60)"
+                    : gameMode === "boss"
+                      ? "oklch(0.65 0.28 300)"
+                      : "oklch(0.65 0.25 250)",
                 textShadow:
-                  gameMode === "boss"
-                    ? "0 0 6px oklch(0.65 0.28 300 / 0.6)"
-                    : "0 0 6px oklch(0.65 0.25 250 / 0.6)",
+                  gameMode === "boss2"
+                    ? "0 0 6px oklch(0.75 0.22 60 / 0.6)"
+                    : gameMode === "boss"
+                      ? "0 0 6px oklch(0.65 0.28 300 / 0.6)"
+                      : "0 0 6px oklch(0.65 0.25 250 / 0.6)",
                 letterSpacing: "0.15em",
               }}
             >
               {gameMode === "2player"
                 ? "P2 · [←] [→]"
-                : gameMode === "boss"
-                  ? "BOSS"
-                  : "CPU"}
+                : gameMode === "boss2"
+                  ? "BOSS 2"
+                  : gameMode === "boss"
+                    ? "BOSS"
+                    : "CPU"}
             </span>
             <div className="flex gap-3">
               <PunchButton
@@ -1018,7 +1162,8 @@ export default function App() {
                 disabled={
                   gamePhase !== "playing" ||
                   gameMode === "vsAI" ||
-                  gameMode === "boss"
+                  gameMode === "boss" ||
+                  gameMode === "boss2"
                 }
                 onPunch={() => triggerPunch("p2", "left")}
               />
@@ -1029,7 +1174,8 @@ export default function App() {
                 disabled={
                   gamePhase !== "playing" ||
                   gameMode === "vsAI" ||
-                  gameMode === "boss"
+                  gameMode === "boss" ||
+                  gameMode === "boss2"
                 }
                 onPunch={() => triggerPunch("p2", "right")}
               />
@@ -1117,6 +1263,41 @@ export default function App() {
               )}
             </AnimatePresence>
 
+            {/* Gold Robot Unlock announcement */}
+            <AnimatePresence>
+              {showGoldUnlock && (
+                <motion.div
+                  data-ocid="game.gold_unlock.panel"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 1.1, opacity: 0 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 200,
+                    damping: 15,
+                    delay: 0.25,
+                  }}
+                  className="absolute font-display font-black tracking-widest text-center uppercase"
+                  style={{
+                    fontSize: "clamp(1rem, 4vw, 1.6rem)",
+                    letterSpacing: "0.15em",
+                    color: "oklch(0.85 0.2 75)",
+                    textShadow:
+                      "0 0 16px oklch(0.85 0.2 75 / 0.9), 0 0 40px oklch(0.75 0.22 70 / 0.6), 0 0 80px oklch(0.65 0.2 65 / 0.3)",
+                    top: "32%",
+                    padding: "10px 22px",
+                    background: "oklch(0.18 0.1 60 / 0.92)",
+                    border: "2px solid oklch(0.65 0.22 65)",
+                    borderRadius: "8px",
+                    boxShadow:
+                      "0 0 30px oklch(0.55 0.2 65 / 0.5), inset 0 1px 0 oklch(0.7 0.2 75 / 0.3)",
+                  }}
+                >
+                  🥇 GOLD ROBOT UNLOCKED! 🥇
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Big KO text */}
             <motion.div
               className="ko-burst"
@@ -1150,15 +1331,19 @@ export default function App() {
                   color:
                     winner === "p1"
                       ? "oklch(0.72 0.28 25)"
-                      : gameMode === "boss"
-                        ? "oklch(0.65 0.28 300)"
-                        : "oklch(0.65 0.25 250)",
+                      : gameMode === "boss2"
+                        ? "oklch(0.75 0.22 60)"
+                        : gameMode === "boss"
+                          ? "oklch(0.65 0.28 300)"
+                          : "oklch(0.65 0.25 250)",
                   textShadow:
                     winner === "p1"
                       ? "0 0 16px oklch(0.72 0.28 25 / 0.8)"
-                      : gameMode === "boss"
-                        ? "0 0 16px oklch(0.65 0.28 300 / 0.8)"
-                        : "0 0 16px oklch(0.65 0.25 250 / 0.8)",
+                      : gameMode === "boss2"
+                        ? "0 0 16px oklch(0.75 0.22 60 / 0.8)"
+                        : gameMode === "boss"
+                          ? "0 0 16px oklch(0.65 0.28 300 / 0.8)"
+                          : "0 0 16px oklch(0.65 0.25 250 / 0.8)",
                 }}
               >
                 {koText}
@@ -1176,17 +1361,21 @@ export default function App() {
                 <span
                   style={{
                     color:
-                      gameMode === "boss"
-                        ? "oklch(0.65 0.28 300)"
-                        : "oklch(0.65 0.25 250)",
+                      gameMode === "boss2"
+                        ? "oklch(0.75 0.22 60)"
+                        : gameMode === "boss"
+                          ? "oklch(0.65 0.28 300)"
+                          : "oklch(0.65 0.25 250)",
                   }}
                 >
                   {localWins.p2}{" "}
                   {gameMode === "2player"
                     ? "P2"
-                    : gameMode === "boss"
-                      ? "BOSS"
-                      : "CPU"}
+                    : gameMode === "boss2"
+                      ? "BOSS 2"
+                      : gameMode === "boss"
+                        ? "BOSS"
+                        : "CPU"}
                 </span>
               </div>
 
@@ -1307,21 +1496,27 @@ export default function App() {
                     fontSize: "1.1rem",
                     letterSpacing: "0.2em",
                     background:
-                      gameMode === "boss"
-                        ? "oklch(0.35 0.22 15)"
-                        : "oklch(0.88 0.2 95)",
+                      gameMode === "boss2"
+                        ? "oklch(0.38 0.22 55)"
+                        : gameMode === "boss"
+                          ? "oklch(0.35 0.22 15)"
+                          : "oklch(0.88 0.2 95)",
                     color:
-                      gameMode === "boss"
+                      gameMode === "boss2" || gameMode === "boss"
                         ? "oklch(0.88 0.2 95)"
                         : "oklch(0.1 0.02 280)",
                     border:
-                      gameMode === "boss"
-                        ? "3px solid oklch(0.78 0.18 65)"
-                        : "3px solid oklch(0.95 0.15 95)",
+                      gameMode === "boss2"
+                        ? "3px solid oklch(0.85 0.2 75)"
+                        : gameMode === "boss"
+                          ? "3px solid oklch(0.78 0.18 65)"
+                          : "3px solid oklch(0.95 0.15 95)",
                     boxShadow:
-                      gameMode === "boss"
-                        ? "0 0 24px oklch(0.62 0.28 15 / 0.6), 0 6px 0 oklch(0.25 0.15 15)"
-                        : "0 0 24px oklch(0.88 0.2 95 / 0.6), 0 6px 0 oklch(0.6 0.16 95)",
+                      gameMode === "boss2"
+                        ? "0 0 24px oklch(0.65 0.25 60 / 0.6), 0 6px 0 oklch(0.25 0.15 55)"
+                        : gameMode === "boss"
+                          ? "0 0 24px oklch(0.62 0.28 15 / 0.6), 0 6px 0 oklch(0.25 0.15 15)"
+                          : "0 0 24px oklch(0.88 0.2 95 / 0.6), 0 6px 0 oklch(0.6 0.16 95)",
                   }}
                 >
                   ↺ PLAY AGAIN

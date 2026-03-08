@@ -11,7 +11,8 @@ const BOSS2_MAX_HITS = 20;
 const PUNCH_ANIM_DURATION = 180;
 const HIT_FLASH_DURATION = 300;
 const EXTREME_WINS_REQUIRED = 10;
-const MAX_BONUS_HEALTH = 20; // cap so health bar doesn't get ridiculous
+const MAX_BONUS_HEALTH = 95; // cap at 100 total (5 base + 95 bonus)
+const HEALTH_MILESTONE = 50; // special reward when health reaches 50+
 
 type Difficulty = "easy" | "medium" | "hard" | "extreme";
 type GameMode = "2player" | "vsAI" | "boss" | "boss2";
@@ -108,6 +109,7 @@ export default function App() {
   const [showGoldUnlock, setShowGoldUnlock] = useState(false);
   const [bonusHealth, setBonusHealth] = useState<number>(getStoredBonusHealth);
   const [justGainedHealth, setJustGainedHealth] = useState(false);
+  const [showHealthMilestone, setShowHealthMilestone] = useState(false);
 
   const isBossUnlocked = extremeWins >= EXTREME_WINS_REQUIRED;
 
@@ -255,6 +257,14 @@ export default function App() {
                   } catch {
                     // ignore
                   }
+                  // Check if we just crossed the 50 health milestone
+                  const totalHealth = MAX_HITS + next;
+                  if (
+                    totalHealth >= HEALTH_MILESTONE &&
+                    MAX_HITS + prev < HEALTH_MILESTONE
+                  ) {
+                    setShowHealthMilestone(true);
+                  }
                   return next;
                 });
                 setJustGainedHealth(true);
@@ -379,6 +389,7 @@ export default function App() {
     setShowBlackUnlock(false);
     setShowGoldUnlock(false);
     setJustGainedHealth(false);
+    setShowHealthMilestone(false);
     setGamePhase("playing");
 
     if (gameMode === "vsAI" || gameMode === "boss" || gameMode === "boss2") {
@@ -396,6 +407,7 @@ export default function App() {
     setShowBlackUnlock(false);
     setShowGoldUnlock(false);
     setJustGainedHealth(false);
+    setShowHealthMilestone(false);
     setGamePhase("menu");
   }, []);
 
@@ -584,7 +596,7 @@ export default function App() {
                 marginTop: "2px",
               }}
             >
-              ❤ HP {MAX_HITS + bonusHealth}
+              ❤ HP {MAX_HITS + bonusHealth}/100
             </span>
           )}
         </div>
@@ -1298,6 +1310,41 @@ export default function App() {
               )}
             </AnimatePresence>
 
+            {/* 50+ Health Milestone announcement */}
+            <AnimatePresence>
+              {showHealthMilestone && (
+                <motion.div
+                  data-ocid="game.health_milestone.panel"
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 1.1, opacity: 0 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 200,
+                    damping: 15,
+                    delay: 0.35,
+                  }}
+                  className="absolute font-display font-black tracking-widest text-center uppercase"
+                  style={{
+                    fontSize: "clamp(1rem, 4vw, 1.6rem)",
+                    letterSpacing: "0.15em",
+                    color: "oklch(0.88 0.28 145)",
+                    textShadow:
+                      "0 0 16px oklch(0.88 0.28 145 / 0.9), 0 0 40px oklch(0.75 0.28 145 / 0.6), 0 0 80px oklch(0.6 0.25 145 / 0.3)",
+                    top: "42%",
+                    padding: "10px 22px",
+                    background: "oklch(0.12 0.08 145 / 0.92)",
+                    border: "2px solid oklch(0.6 0.25 145)",
+                    borderRadius: "8px",
+                    boxShadow:
+                      "0 0 30px oklch(0.5 0.22 145 / 0.5), inset 0 1px 0 oklch(0.65 0.25 145 / 0.3)",
+                  }}
+                >
+                  💪 MAX HEALTH UNLOCKED! 50+ HP! 💪
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Big KO text */}
             <motion.div
               className="ko-burst"
@@ -1475,6 +1522,10 @@ export default function App() {
                         }}
                       >
                         {MAX_HITS + bonusHealth}
+                      </span>
+                      <span style={{ color: "oklch(0.45 0.12 145)" }}>
+                        {" "}
+                        / 100
                       </span>{" "}
                       <span style={{ color: "oklch(0.55 0.15 145)" }}>
                         (+{bonusHealth} bonus)
